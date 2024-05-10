@@ -52,7 +52,7 @@ class gesture_recognition:
 
     def main_loop(self):
         rospy.on_shutdown(self.cleanup)
-        r = rospy.Rate(1)
+        r = rospy.Rate(0.1)
         print('waiting for image {}'.format(self.image_received))
         while not rospy.is_shutdown():
             if not self.image_received:

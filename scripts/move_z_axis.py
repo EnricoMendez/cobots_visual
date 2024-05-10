@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 from std_msgs.msg import String
-from xarm_msgs.srv import Move, MoveRequest
+from xarm_msgs.srv import Move, MoveRequest, SetAxis, SetInt16
 
 class move_z:
     def __init__(self):
@@ -13,16 +13,21 @@ class move_z:
         self.myMove = MoveRequest()
         self.z_pose = 200           #(mm)
         self.gesture = 'None'
-        self.step = 0
+        self.step = 5
         
         ### Constants ###
-        self.myMove.mvvelo = 200    #(mm/s)
-        self.myMove.mvacc = 2000    #(mm/s²)
-        self.z_0 = 200              #(mm)
-        self.z_1 = 100              #(mm)
+        self.myMove.mvvelo = 200        #(mm/s)
+        self.myMove.mvacc = 200         #(mm/s²)
+        self.z_0 = 100                  #(mm)
+        self.z_1 = 300                  #(mm)
+        self.z_dif = self.z_1 - self.z_0
+        self.step_size = 10
         
         ### Subscribers ###
         rospy.Subscriber("/hand/gesture", String, self.gesture_callback)
+
+        ### Robot initial setup ###
+        self.robot_bringup()
 
         ### Service proxy ###
         # Wait for move line service to be available 
@@ -32,18 +37,41 @@ class move_z:
         rospy.loginfo('Service available')
 
         rospy.loginfo('Going to initial position')
+        self.step = self.step_size/2
+        self.z_pose = self.calculate_z_pose(self.step)
         self.move_line_service_call(self.z_pose)
+
+    def robot_bringup(self):
+        # 1 Enable motors
+        rospy.wait_for_service('/ufactory/motion_ctrl') 
+        enable_mot_service_proxy = rospy.ServiceProxy('/ufactory/motion_ctrl', SetAxis)
+        enable_mot_service_proxy(8, 1)
+        rospy.loginfo('Motors enabled')
+
+        # 2 Set robot mode
+        rospy.wait_for_service('/ufactory/set_mode') 
+        mode_service_proxy = rospy.ServiceProxy('/ufactory/set_mode', SetInt16)
+        print("calling MODE service")
+        mode_service_proxy(0) 
+        rospy.loginfo('Mode was set to 0')
+
+        # 3 Set robot state
+        rospy.wait_for_service('/ufactory/set_state') #This is a convenience method that blocks until the service is available.
+        mode_service_proxy = rospy.ServiceProxy('/ufactory/set_state', SetInt16)
+        mode_service_proxy(0)
+        rospy.loginfo('Robot state set to 0')
 
     def move_line_service_call(self, z_pose):
         # Set the target pose
-        self.myMove.pose = [200,0,z_pose,3.14,0,0]
+        self.myMove.pose = [250.0,0.0,z_pose,3.14,0.0,0.0]
         # Call the service
         self.move_proxy(self.myMove)
         rospy.loginfo('Service called successfuly to {} z position'.format(z_pose))
 
     def calculate_z_pose(self,step):
-        displacement = (self.z_1 - self.z_0) * step/10
-        z_pose = displacement + z_pose
+        displacement = (self.z_dif) * step/self.step_size
+        z_pose = displacement + self.z_0
+        return z_pose
 
     def gesture_callback(self,data):
         self.gesture = data.data
@@ -54,13 +82,16 @@ class move_z:
         rospy.loginfo('Starting main loop')
         while not rospy.is_shutdown():
             if self.gesture == 'Thumb_Up':
-                if self.step == 10: continue
+                self.gesture = ''   # Reset the gesture variable
+                if self.step == self.step_size: pass
                 self.step += 1
             elif self.gesture == 'Thumb_Down':
-                if self.step == 0: continue
+                self.gesture = ''   # Reset the gesture variable
+                if self.step == 0: pass
                 self.step -= 1
             else : 
-                continue
+                pass
+            rospy.loginfo('Step set to : {}'.format(self.step))
             self.z_pose = self.calculate_z_pose(self.step)
             self.move_line_service_call(self.z_pose)
             r.sleep()
