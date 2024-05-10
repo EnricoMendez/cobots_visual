@@ -6,7 +6,6 @@ from std_msgs.msg import String
 from cv_bridge import CvBridge
 import rospkg
 
-
 class gesture_recognition:
     def __init__(self):
 		### Node init ###
@@ -29,6 +28,7 @@ class gesture_recognition:
 
         self.bridge = CvBridge()
         
+        # Media pipe recognizer setup
         BaseOptions = mp.tasks.BaseOptions
         self.GestureRecognizer = mp.tasks.vision.GestureRecognizer
         GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
@@ -65,12 +65,9 @@ class gesture_recognition:
                 if gesture_recognition_result.hand_landmarks == []: 
                     self.gesture_msg = ''
                     self.position_msg = ''	
-                    self.gesture_pub.publish(self.gesture_msg)
-                    self.position_pub.publish(self.position_msg)
-                    continue
-
-                self.gesture_msg = str((gesture_recognition_result.gestures[0][0].category_name))
-                self.position_msg = str((gesture_recognition_result.hand_landmarks[0][9]))	
+                else:
+                    self.gesture_msg = str((gesture_recognition_result.gestures[0][0].category_name))
+                    self.position_msg = str((gesture_recognition_result.hand_landmarks[0][9]))	
                 self.gesture_pub.publish(self.gesture_msg)
                 self.position_pub.publish(self.position_msg)			
         r.sleep()

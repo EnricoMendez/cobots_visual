@@ -17,9 +17,9 @@ class move_z:
         
         ### Constants ###
         self.myMove.mvvelo = 200        #(mm/s)
-        self.myMove.mvacc = 200         #(mm/s²)
-        self.z_0 = 100                  #(mm)
-        self.z_1 = 300                  #(mm)
+        self.myMove.mvacc =  200        #(mm/s²)
+        self.z_0 = 100                  #(mm) lowest posible value for z_pose
+        self.z_1 = 300                  #(mm) highest posible value for z_pose
         self.z_dif = self.z_1 - self.z_0
         self.step_size = 10
         
@@ -27,7 +27,7 @@ class move_z:
         rospy.Subscriber("/hand/gesture", String, self.gesture_callback)
 
         ### Robot initial setup ###
-        self.robot_bringup()
+        self.robot_enable()
 
         ### Service proxy ###
         # Wait for move line service to be available 
@@ -39,9 +39,9 @@ class move_z:
         rospy.loginfo('Going to initial position')
         self.step = self.step_size/2
         self.z_pose = self.calculate_z_pose(self.step)
-        self.move_line_service_call(self.z_pose)
+        self.move_line_service_call(self.z_pose)        # Move to initial pose
 
-    def robot_bringup(self):
+    def robot_enable(self):
         # 1 Enable motors
         rospy.wait_for_service('/ufactory/motion_ctrl') 
         enable_mot_service_proxy = rospy.ServiceProxy('/ufactory/motion_ctrl', SetAxis)
@@ -83,14 +83,14 @@ class move_z:
         while not rospy.is_shutdown():
             if self.gesture == 'Thumb_Up':
                 self.gesture = ''   # Reset the gesture variable
-                if self.step == self.step_size: pass
+                if self.step == self.step_size: continue
                 self.step += 1
             elif self.gesture == 'Thumb_Down':
                 self.gesture = ''   # Reset the gesture variable
-                if self.step == 0: pass
+                if self.step == 0: continue
                 self.step -= 1
             else : 
-                pass
+                continue
             rospy.loginfo('Step set to : {}'.format(self.step))
             self.z_pose = self.calculate_z_pose(self.step)
             self.move_line_service_call(self.z_pose)
