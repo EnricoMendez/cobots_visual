@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="launch_rviz" default="true"/>
+
+    <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="log">
+        <param name="video_device" value="/dev/video0"/>
+        <param name="pixel_format" value="yuyv"/>
+    </node>
+
+    <node pkg="cobots_visual" type="gesture_recognition.py" name="gesture_recognition" output="log">
+    </node>
+    <group if="$(arg launch_rviz)">
+        <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cobots_visual)/config/cam_visual.rviz"/>
+    </group>
+</launch>

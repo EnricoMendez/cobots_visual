@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 import mediapipe as mp 
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
+import rospkg
 
 
 class gesture_recognition:
@@ -19,9 +20,15 @@ class gesture_recognition:
 
 
 		### Constants ###
-        self.bridge = CvBridge()
-        model_path = '/home/enrico/xarm_ws/src/cobots_visual/scripts/gesture_recognizer.task'
+          
+        # Get an instance of RosPack with the default search paths
+        rospack = rospkg.RosPack()
+        # Get the file path for this ROS package
+        pkg_path = str(rospack.get_path('cobots_visual'))
+        model_path = pkg_path + '/scripts/gesture_recognizer.task'
 
+        self.bridge = CvBridge()
+        
         BaseOptions = mp.tasks.BaseOptions
         self.GestureRecognizer = mp.tasks.vision.GestureRecognizer
         GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
@@ -37,9 +44,6 @@ class gesture_recognition:
         ### Publishers ###
         self.gesture_pub = rospy.Publisher("/hand/gesture", String, queue_size=10)
         self.position_pub = rospy.Publisher("/hand/position", String, queue_size=10)
-        
-		
-	
 
     def camera_callback(self,data):
         print('Image recieved')
@@ -48,7 +52,7 @@ class gesture_recognition:
 
     def main_loop(self):
         rospy.on_shutdown(self.cleanup)
-        r = rospy.Rate(.5)
+        r = rospy.Rate(1)
         print('waiting for image {}'.format(self.image_received))
         while not rospy.is_shutdown():
             if not self.image_received:
@@ -58,7 +62,12 @@ class gesture_recognition:
 				
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=self.cv_image)
                 gesture_recognition_result = recognizer.recognize(mp_image) 
-                if gesture_recognition_result.hand_landmarks == []: continue
+                if gesture_recognition_result.hand_landmarks == []: 
+                    self.gesture_msg = ''
+                    self.position_msg = ''	
+                    self.gesture_pub.publish(self.gesture_msg)
+                    self.position_pub.publish(self.position_msg)
+                    continue
 
                 self.gesture_msg = str((gesture_recognition_result.gestures[0][0].category_name))
                 self.position_msg = str((gesture_recognition_result.hand_landmarks[0][9]))	
