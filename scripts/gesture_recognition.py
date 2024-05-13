@@ -2,7 +2,7 @@
 import rospy
 import mediapipe as mp 
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from cv_bridge import CvBridge
 import rospkg
 
@@ -16,6 +16,8 @@ class gesture_recognition:
         self.cv_image = 0       #This is just to create the global variable cv_image 
         self.position_msg = String
         self.gesture_msg = String
+        self.x_msg = Float64
+        self.y_msg = Float64
 
 
 		### Constants ###
@@ -44,6 +46,9 @@ class gesture_recognition:
         ### Publishers ###
         self.gesture_pub = rospy.Publisher("/hand/gesture", String, queue_size=10)
         self.position_pub = rospy.Publisher("/hand/position", String, queue_size=10)
+        self.x_pub = rospy.Publisher("/hand/x", Float64, queue_size=10)
+        self.y_pub = rospy.Publisher("/hand/y", Float64, queue_size=10)
+        
 
     def camera_callback(self,data):
         print('Image recieved')
@@ -67,7 +72,12 @@ class gesture_recognition:
                     self.position_msg = ''	
                 else:
                     self.gesture_msg = str((gesture_recognition_result.gestures[0][0].category_name))
-                    self.position_msg = str((gesture_recognition_result.hand_landmarks[0][9]))	
+                    self.position_msg = str((gesture_recognition_result.hand_landmarks[0][9]))
+                    self.x_msg = (round(gesture_recognition_result.hand_landmarks[0][9].x,4))
+                    self.y_msg = (round(gesture_recognition_result.hand_landmarks[0][9].y,4))
+                
+                self.x_pub.publish(self.x_msg)
+                self.y_pub.publish(self.y_msg)
                 self.gesture_pub.publish(self.gesture_msg)
                 self.position_pub.publish(self.position_msg)			
         r.sleep()
